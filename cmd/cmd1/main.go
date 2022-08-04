@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -17,10 +19,13 @@ func handle(err error) {
 func main() {
 	const basedir = "../../downloaded"
 	const extension = ".webp"
+	const prefix = ""
+
 	entries, err := os.ReadDir(basedir)
 	handle(err)
 
 	i := 1
+	var files []fs.FileInfo
 	for _, file := range entries {
 		if file.Type().IsDir() {
 			continue
@@ -28,7 +33,18 @@ func main() {
 		if !strings.HasSuffix(file.Name(), extension) {
 			continue
 		}
-		handle(os.Rename(filepath.Join(basedir, file.Name()), filepath.Join(basedir, fmt.Sprintf("%04d"+extension, i))))
+		fileinfo, err := file.Info()
+		handle(err)
+		files = append(files, fileinfo)
+
+	}
+	sort.Slice(files, func(i, j int) bool {
+		ifile := files[i]
+		jfile := files[j]
+		return ifile.Size() < jfile.Size()
+	})
+	for _, file := range files {
+		handle(os.Rename(filepath.Join(basedir, file.Name()), filepath.Join(basedir, fmt.Sprintf("%s%04d%s", prefix, i, extension))))
 		i++
 	}
 
@@ -45,7 +61,7 @@ func main() {
 			if !strings.HasSuffix(file.Name(), extension) {
 				continue
 			}
-			handle(os.Rename(filepath.Join(basedir, folder.Name(), file.Name()), filepath.Join(basedir, fmt.Sprintf("%04d"+extension, i))))
+			handle(os.Rename(filepath.Join(basedir, folder.Name(), file.Name()), filepath.Join(basedir, fmt.Sprintf("%s%04d%s", prefix, i, extension))))
 			i++
 		}
 		os.RemoveAll(filepath.Join(basedir, folder.Name()))
